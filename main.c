@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include <string.h>
-#include <windows.h>  // 用于Windows文件和目录遍历
-#include "ff.h"       // FatFs库
+#include <stdlib.h>     // 用于 strtoull
+#include <windows.h>    // 用于Windows文件和目录遍历
+#include "ff.h"         // FatFs库
 #include "main.h"
 
-/* 生成的镜像文件名 */
+/* 默认的镜像文件名 */
 char *disk_image_path="fatfs.img";
-/* 生成的镜像文件大小 (例如：32MB) --- */
+/* 默认的镜像文件大小 (32MiB) */
 uint64_t disk_image_size=(32 * 1024 * 1024);
-/* 要打包的文件夹名 */
+/* 默认要打包的文件夹名 */
 char* source_folder = "assets_to_pack";
 
 // 定义一个足够大的缓冲区用于文件读写
@@ -148,14 +149,52 @@ int copy_directory_to_fatfs(const char* pc_dir_path, const char* fatfs_dir_path)
 
 /*
 =================================================================================
- 3. 主函数中的示例用法
+ 3. 主函数
 =================================================================================
 */
 
-int main() {
+int main(int argc, char *argv[]) {
     FATFS fs;
     FRESULT res;
     BYTE work[FF_MAX_SS];
+
+    // --- 从命令行参数解析配置 ---
+    if (argc > 1 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
+        printf("Usage: %s [output_image.img] [size_in_bytes] [source_folder]\n", argv[0]);
+        printf("  - If no arguments are provided, default values will be used.\n");
+        return 0;
+    }
+    
+    if (argc > 4) {
+        fprintf(stderr, "Error: Too many arguments.\n");
+        fprintf(stderr, "Usage: %s [output_image.img] [size_in_bytes] [source_folder]\n", argv[0]);
+        return 1;
+    }
+
+    if (argc >= 2) {
+        disk_image_path = argv[1];
+    }
+    if (argc >= 3) {
+        char* endptr;
+        unsigned long long size_bytes = strtoull(argv[2], &endptr, 10);
+        if (*endptr != '\0' || argv[2][0] == '\0' || size_bytes == 0) {
+            fprintf(stderr, "Error: Invalid size '%s'. Please provide a positive integer for bytes.\n", argv[2]);
+            return 1;
+        }
+        disk_image_size = size_bytes;
+    }
+    if (argc >= 4) {
+        source_folder = argv[3];
+    }
+
+    printf("----------------------------------------\n");
+    printf("FatFs Image Packer Configuration:\n");
+    printf("  - Image Path:    %s\n", disk_image_path);
+    printf("  - Image Size:    %llu bytes (%.2f MiB)\n", 
+           (unsigned long long)disk_image_size, 
+           (double)disk_image_size / (1024.0 * 1024.0));
+    printf("  - Source Folder: %s\n", source_folder);
+    printf("----------------------------------------\n\n");
 
     // --- 准备工作：格式化和挂载 ---
     printf("Formatting the disk image...\n");
@@ -176,8 +215,7 @@ int main() {
     // --- 核心操作：拷贝整个文件夹 ---
     const char* dest_root = "0:";                // <-- FatFs的根目录
 
-    // 在运行程序前，请确保程序目录下存在一个名为 "assets_to_pack" 的文件夹
-    // 并且里面放一些你想打包的图片和文件，可以包含子文件夹。
+    // 在运行程序前，请确保源文件夹存在
     printf("\nStarting to copy directory '%s' to the root of the image...\n", source_folder);
 
     // 首先在PC上创建这个目录，以便程序能找到它
