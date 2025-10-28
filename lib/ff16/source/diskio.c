@@ -83,7 +83,7 @@ DSTATUS disk_initialize (
 	// 3. (可选但推荐) 将文件指针移回文件开头
 	rewind(fp_image);
 
-	printf("Successfully created a %d MB disk image.\n", disk_image_size / (1024 * 1024));
+	printf("Successfully created a %.2f MB disk image.\n", (double)disk_image_size / (1024.0 * 1024.0));
 	
 
 	Stat &= ~STA_NOINIT; /* 清除未初始化标志 */
