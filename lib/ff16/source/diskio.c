@@ -181,12 +181,12 @@ DRESULT disk_ioctl (
 
 		/* Get number of sectors on the disk (LBA_t) */
 		case GET_SECTOR_COUNT:
-			fseek(fp_image, 0, SEEK_END);
-			file_size = ftell(fp_image);
-			if (file_size >= 0) {
-				*(LBA_t*)buff = file_size / SECTOR_SIZE;
-				res = RES_OK;
-			}
+			if (disk_image_size > 0) {
+                *(LBA_t*)buff = disk_image_size / SECTOR_SIZE;
+                res = RES_OK;
+            } else {
+                res = RES_ERROR; // 如果大小为0，则报告错误
+            }
 			break;
 
 		/* Get R/W sector size (WORD) */
