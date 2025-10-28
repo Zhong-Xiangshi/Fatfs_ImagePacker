@@ -2,3 +2,4 @@ out
 *.zip
 lib/ff16/documents
 CMakePresets.json
+.vscode/settings.json
