@@ -11,8 +11,12 @@ Options:
   -f <format>       Specify the filesystem format. Options are:
                     'FAT', 'FAT32', 'EXFAT' (default: EXFAT).
 ```
-当卷大小 > 63 扇区时，FatFs 会预留 63 个扇区(31.5KB)用于 MBR 和分区表，剩余的才分配给文件系统。
+
 ## 在Fat扇区大小512Byte条件下的最小镜像大小：
 FAT最小97792字节(~0.09MB)
+
 exFAT最小2129408字节(~2.03MB)
+
 FAT32最小33862656字节（~32.29MB）
+
+当卷大小 > 63 扇区时，FatFs 会预留 63 个扇区(31.5KB)用于 MBR 和分区表，剩余的才分配给文件系统。
