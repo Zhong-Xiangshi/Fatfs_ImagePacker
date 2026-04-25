@@ -20,15 +20,14 @@ BYTE fs_format_type = FM_EXFAT;
 =================================================================================
 */
 void print_usage(const char* prog_name) {
-    printf("Usage: %s [options] [output_image.img] [size_in_bytes] [source_folder]\n", prog_name);
+    printf("Usage: %s [-o output_image.img] [-s size_in_bytes] [-i source_folder] [-f format]\n", prog_name);
     printf("Options:\n");
-    printf("  -h, --help        Show this help message.\n");
+    printf("  -h                Show this help message.\n");
+    printf("  -o <path>         Output image path (default: %s).\n", disk_image_path);
+    printf("  -s <bytes>        Image size in bytes (default: %llu).\n", (unsigned long long)disk_image_size);
+    printf("  -i <folder>       Source folder path (default: %s).\n", source_folder);
     printf("  -f <format>       Specify the filesystem format. Options are:\n");
     printf("                    'FAT', 'FAT32', 'EXFAT' (default: EXFAT).\n");
-    printf("\nArguments default to:\n");
-    printf("  - output_image.img: %s\n", disk_image_path);
-    printf("  - size_in_bytes:    %llu\n", (unsigned long long)disk_image_size);
-    printf("  - source_folder:    %s\n", source_folder);
 }
 
 
@@ -46,14 +45,46 @@ int main(int argc, char *argv[]) {
     // --- 从命令行参数解析配置 ---
     int arg_index = 1;
     while (arg_index < argc) {
-        if (strcmp(argv[arg_index], "-h") == 0 || strcmp(argv[arg_index], "--help") == 0) {
+        if (strcmp(argv[arg_index], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
         }
-        // 检查文件系统格式选项
+        else if (strcmp(argv[arg_index], "-o") == 0) {
+            if (arg_index + 1 >= argc) {
+                fprintf(stderr, "Error: Missing value for -o option.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+            disk_image_path = argv[++arg_index];
+        }
+        else if (strcmp(argv[arg_index], "-s") == 0) {
+            char* endptr;
+            unsigned long long size_bytes;
+
+            if (arg_index + 1 >= argc) {
+                fprintf(stderr, "Error: Missing value for -s option.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            size_bytes = strtoull(argv[++arg_index], &endptr, 10);
+            if (*endptr != '\0' || argv[arg_index][0] == '\0' || size_bytes == 0) {
+                fprintf(stderr, "Error: Invalid size '%s'. Please provide a positive integer for bytes.\n", argv[arg_index]);
+                return 1;
+            }
+            disk_image_size = size_bytes;
+        }
+        else if (strcmp(argv[arg_index], "-i") == 0) {
+            if (arg_index + 1 >= argc) {
+                fprintf(stderr, "Error: Missing value for -i option.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+            source_folder = argv[++arg_index];
+        }
         else if (strcmp(argv[arg_index], "-f") == 0) {
             if (arg_index + 1 < argc) {
-                arg_index++; // 移动到格式值
+                arg_index++;
                 if (stricmp(argv[arg_index], "FAT") == 0) {
                     fs_format_type = FM_FAT;
                     format_str = "FAT";
@@ -73,32 +104,10 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
         }
-        // 非选项参数按顺序解析
         else {
-            // 第一个非选项参数是镜像路径
-            if (disk_image_path == NULL || strcmp(disk_image_path, "fatfs.img") == 0) {
-                 disk_image_path = argv[arg_index];
-            }
-            // 第二个是大小
-            else if (disk_image_size == (32 * 1024 * 1024)) {
-                char* endptr;
-                unsigned long long size_bytes = strtoull(argv[arg_index], &endptr, 10);
-                if (*endptr != '\0' || argv[arg_index][0] == '\0' || size_bytes == 0) {
-                    fprintf(stderr, "Error: Invalid size '%s'. Please provide a positive integer for bytes.\n", argv[arg_index]);
-                    return 1;
-                }
-                disk_image_size = size_bytes;
-            }
-            // 第三个是源文件夹
-            else if (source_folder == NULL || strcmp(source_folder, "assets_to_pack") == 0) {
-                source_folder = argv[arg_index];
-            }
-            // 过多的参数
-            else {
-                fprintf(stderr, "Error: Too many arguments.\n");
-                print_usage(argv[0]);
-                return 1;
-            }
+            fprintf(stderr, "Error: Unknown option or positional argument '%s'.\n", argv[arg_index]);
+            print_usage(argv[0]);
+            return 1;
         }
         arg_index++;
     }

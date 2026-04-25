@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10.0)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(Fatfs_ImagePacker VERSION 0.1.0 LANGUAGES C)
 
 file(GLOB_RECURSE FATFS_SOURCES "lib/ff16/source/*.c")

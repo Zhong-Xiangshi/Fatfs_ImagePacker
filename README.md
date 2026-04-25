@@ -1,15 +1,13 @@
 # FatFs Image Packer
-一个简单的exe程序：新建一个指定大小的文件，并将文件格式化为FatFs文件系统，然后拷贝指定文件夹的内容到里面。
+一个简单的exe程序：新建一个指定大小的文件，并将文件格式化为FatFs文件系统（Fat扇区大小512），然后拷贝指定文件夹的内容到里面。
 ``` PowerShell
 Fatfs_ImagePacker.exe -h
-Usage: Fatfs_ImagePacker.exe [options] [output_image.img] [size_in_bytes] [source_folder]
+Usage: Fatfs_ImagePacker.exe [-o output_image.img] [-s size_in_bytes] [-i source_folder] [-f format]
 Options:
-  -h, --help        Show this help message.
+  -h                Show this help message.
+  -o <path>         Output image path (default: fatfs.img).
+  -s <bytes>        Image size in bytes (default: 33554432).
+  -i <folder>       Source folder path (default: assets_to_pack).
   -f <format>       Specify the filesystem format. Options are:
                     'FAT', 'FAT32', 'EXFAT' (default: EXFAT).
-
-Arguments default to:
-  - output_image.img: fatfs.img
-  - size_in_bytes:    33554432
-  - source_folder:    assets_to_pack
 ```
