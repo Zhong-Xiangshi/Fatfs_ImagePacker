@@ -13,6 +13,10 @@ uint64_t disk_image_size=(32 * 1024 * 1024);
 char* source_folder = "assets_to_pack";
 /* 默认的文件系统格式 */
 BYTE fs_format_type = FM_EXFAT;
+/* 是否使用 SFD（跳过分区表，卷直接从0扇区开始） */
+BYTE use_sfd = 0;
+/* 默认的扇区大小（字节），必须为 512/1024/2048/4096 之一 */
+uint32_t disk_sector_size = 512;
 
 /*
 =================================================================================
@@ -20,14 +24,17 @@ BYTE fs_format_type = FM_EXFAT;
 =================================================================================
 */
 void print_usage(const char* prog_name) {
-    printf("Usage: %s [-o output_image.img] [-s size_in_bytes] [-i source_folder] [-f format]\n", prog_name);
+    printf("Usage: %s [-o output_image.img] [-s size_in_bytes] [-i source_folder] [-f format] [-b sector_size]\n", prog_name);
     printf("Options:\n");
     printf("  -h                Show this help message.\n");
     printf("  -o <path>         Output image path (default: %s).\n", disk_image_path);
     printf("  -s <bytes>        Image size in bytes (default: %llu).\n", (unsigned long long)disk_image_size);
     printf("  -i <folder>       Source folder path (default: %s).\n", source_folder);
     printf("  -f <format>       Specify the filesystem format. Options are:\n");
-    printf("                    'FAT', 'FAT32', 'EXFAT' (default: EXFAT).\n");
+    printf("                    'FAT', 'FAT32', 'EXFAT', 'ANY' (default: EXFAT).\n");
+    printf("                    'ANY' lets f_mkfs choose automatically by volume size.\n");
+    printf("  -b <bytes>        Sector size in bytes: 512, 1024, 2048 or 4096 (default: 512).\n");
+    printf("  -sfd              SFD format: no partition table, volume starts at sector 0.\n");
 }
 
 
@@ -82,6 +89,27 @@ int main(int argc, char *argv[]) {
             }
             source_folder = argv[++arg_index];
         }
+        else if (strcmp(argv[arg_index], "-b") == 0) {
+            char* endptr;
+            unsigned long long sector_size;
+
+            if (arg_index + 1 >= argc) {
+                fprintf(stderr, "Error: Missing value for -b option.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            sector_size = strtoull(argv[++arg_index], &endptr, 10);
+            if (*endptr != '\0' || argv[arg_index][0] == '\0' ||
+                (sector_size != 512 && sector_size != 1024 && sector_size != 2048 && sector_size != 4096)) {
+                fprintf(stderr, "Error: Invalid sector size '%s'. Must be 512, 1024, 2048 or 4096.\n", argv[arg_index]);
+                return 1;
+            }
+            disk_sector_size = (uint32_t)sector_size;
+        }
+        else if (strcmp(argv[arg_index], "-sfd") == 0) {
+            use_sfd = 1;
+        }
         else if (strcmp(argv[arg_index], "-f") == 0) {
             if (arg_index + 1 < argc) {
                 arg_index++;
@@ -94,8 +122,11 @@ int main(int argc, char *argv[]) {
                 } else if (stricmp(argv[arg_index], "EXFAT") == 0) {
                     fs_format_type = FM_EXFAT;
                     format_str = "EXFAT";
+                } else if (stricmp(argv[arg_index], "ANY") == 0) {
+                    fs_format_type = FM_ANY;
+                    format_str = "ANY";
                 } else {
-                    fprintf(stderr, "Error: Invalid format type '%s'. Use 'FAT', 'FAT32', or 'EXFAT'.\n", argv[arg_index]);
+                    fprintf(stderr, "Error: Invalid format type '%s'. Use 'FAT', 'FAT32', 'EXFAT', or 'ANY'.\n", argv[arg_index]);
                     return 1;
                 }
             } else {
@@ -120,12 +151,13 @@ int main(int argc, char *argv[]) {
            (double)disk_image_size / (1024.0 * 1024.0));
     printf("  - Source Folder: %s\n", source_folder);
     printf("  - FS Format:     %s\n", format_str);
+    printf("  - Sector Size:   %u bytes\n", disk_sector_size);
     printf("----------------------------------------\n\n");
 
     // --- 准备工作：格式化和挂载 ---
     printf("Formatting the disk image with %s...\n", format_str);
-    // 使用 MKFS_PARM 结构体来指定格式
-    MKFS_PARM opt = { .fmt = fs_format_type };
+    // 使用 MKFS_PARM 结构体来指定格式，SFD 时置 FM_SFD 位（不创建分区表）
+    MKFS_PARM opt = { .fmt = fs_format_type | (use_sfd ? FM_SFD : 0) };
     res = f_mkfs("0:", &opt, work, sizeof(work));
     if (res != FR_OK) {
         fprintf(stderr, "ERROR: f_mkfs failed. FRESULT: %d\n", res);

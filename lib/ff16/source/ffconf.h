@@ -133,7 +133,7 @@
 /  ff_memfree() exemplified in ffsystem.c, need to be added to the project. */
 
 
-#define FF_LFN_UNICODE	2   //文件名字符串转换为utf-8编码后给到上层
+#define FF_LFN_UNICODE	0   //API层使用ANSI/OEM编码（当前CP936/GBK），与Windows的argv编码一致
 /* This option switches the character encoding on the API when LFN is enabled.
 /
 /   0: ANSI/OEM in current CP (TCHAR = char)
@@ -206,7 +206,7 @@
 
 
 #define FF_MIN_SS		512
-#define FF_MAX_SS		512 //扇区缓冲的最大值，一般设置为512。
+#define FF_MAX_SS		4096 //支持可变扇区大小，由命令行参数 -b 指定。
 /* This set of options configures the range of sector size to be supported. (512,
 /  1024, 2048 or 4096) Always set both 512 for most systems, generic memory card and
 /  harddisk, but a larger value may be required for on-board flash memory and some

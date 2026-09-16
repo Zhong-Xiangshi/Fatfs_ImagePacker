@@ -20,8 +20,7 @@
 
 
 
-/* For this example, we'll use a fixed sector size of 512 bytes */
-#define SECTOR_SIZE 512
+/* 扇区大小由命令行参数 -b 指定，默认512字节，见 main.c */
 
 
 
@@ -106,12 +105,12 @@ DRESULT disk_read (
 	}
 
 	/* Move file pointer to the correct sector */
-	if (fseek(fp_image, (long)sector * SECTOR_SIZE, SEEK_SET) != 0) {
+	if (fseek(fp_image, (long long)sector * disk_sector_size, SEEK_SET) != 0) {
 		return RES_ERROR;
 	}
 
 	/* Read data from the file */
-	size_t read_count = fread(buff, SECTOR_SIZE, count, fp_image);
+	size_t read_count = fread(buff, disk_sector_size, count, fp_image);
 	if (read_count != count) {
 		// This can happen if trying to read past the end of the file.
 		// For a simple tool, we can treat it as an error.
@@ -139,12 +138,12 @@ DRESULT disk_write (
 	}
 
 	/* Move file pointer to the correct sector */
-	if (fseek(fp_image, (long)sector * SECTOR_SIZE, SEEK_SET) != 0) {
+	if (fseek(fp_image, (long long)sector * disk_sector_size, SEEK_SET) != 0) {
 		return RES_ERROR;
 	}
 
 	/* Write data to the file */
-	size_t write_count = fwrite(buff, SECTOR_SIZE, count, fp_image);
+	size_t write_count = fwrite(buff, disk_sector_size, count, fp_image);
 	if (write_count != count) {
 		return RES_ERROR;
 	}
@@ -182,7 +181,7 @@ DRESULT disk_ioctl (
 		/* Get number of sectors on the disk (LBA_t) */
 		case GET_SECTOR_COUNT:
 			if (disk_image_size > 0) {
-                *(LBA_t*)buff = disk_image_size / SECTOR_SIZE;
+                *(LBA_t*)buff = disk_image_size / disk_sector_size;
                 res = RES_OK;
             } else {
                 res = RES_ERROR; // 如果大小为0，则报告错误
@@ -191,7 +190,7 @@ DRESULT disk_ioctl (
 
 		/* Get R/W sector size (WORD) */
 		case GET_SECTOR_SIZE:
-			*(WORD*)buff = SECTOR_SIZE;
+			*(WORD*)buff = disk_sector_size;
 			res = RES_OK;
 			break;
 
