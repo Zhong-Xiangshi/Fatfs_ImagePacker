@@ -17,6 +17,8 @@ BYTE fs_format_type = FM_EXFAT;
 BYTE use_sfd = 0;
 /* 默认的扇区大小（字节），必须为 512/1024/2048/4096 之一 */
 uint32_t disk_sector_size = 512;
+/* 默认镜像头部不填充 */
+uint64_t disk_header_pad = 0;
 
 /*
 =================================================================================
@@ -35,6 +37,9 @@ void print_usage(const char* prog_name) {
     printf("                    'ANY' lets f_mkfs choose automatically by volume size.\n");
     printf("  -b <bytes>        Sector size in bytes: 512, 1024, 2048 or 4096 (default: 512).\n");
     printf("  -sfd              SFD format: no partition table, volume starts at sector 0.\n");
+    printf("  -p <bytes>        Pad image head with 0xFF bytes; filesystem starts at this\n");
+    printf("                    offset. Use when the flash tool writes the image at a\n");
+    printf("                    non-sector-aligned address (default: 0).\n");
 }
 
 
@@ -107,6 +112,23 @@ int main(int argc, char *argv[]) {
             }
             disk_sector_size = (uint32_t)sector_size;
         }
+        else if (strcmp(argv[arg_index], "-p") == 0) {
+            char* endptr;
+            unsigned long long pad;
+
+            if (arg_index + 1 >= argc) {
+                fprintf(stderr, "Error: Missing value for -p option.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            pad = strtoull(argv[++arg_index], &endptr, 10);
+            if (*endptr != '\0' || argv[arg_index][0] == '\0') {
+                fprintf(stderr, "Error: Invalid pad size '%s'.\n", argv[arg_index]);
+                return 1;
+            }
+            disk_header_pad = pad;
+        }
         else if (strcmp(argv[arg_index], "-sfd") == 0) {
             use_sfd = 1;
         }
@@ -152,6 +174,7 @@ int main(int argc, char *argv[]) {
     printf("  - Source Folder: %s\n", source_folder);
     printf("  - FS Format:     %s\n", format_str);
     printf("  - Sector Size:   %u bytes\n", disk_sector_size);
+    printf("  - Head Padding:  %llu bytes (0xFF)\n", (unsigned long long)disk_header_pad);
     printf("----------------------------------------\n\n");
 
     // --- 准备工作：格式化和挂载 ---

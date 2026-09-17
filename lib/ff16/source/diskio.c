@@ -26,6 +26,8 @@
 
 static FILE* fp_image = NULL;	/* File pointer for the disk image */
 static DSTATUS Stat = STA_NOINIT;	/* Disk status */
+/* 镜像头部填充字节数（0xFF），文件系统卷从该偏移开始 */
+static uint64_t volume_base = 0;
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
@@ -57,11 +59,30 @@ DSTATUS disk_initialize (
 		return Stat;
 	}
 	remove(disk_image_path); /* 删除旧的镜像文件，确保每次都是新的开始 */
-	printf("Creating a new one...\n", disk_image_path);
+	printf("Creating a new one...\n");
 	fp_image = fopen(disk_image_path, "w+b"); /* 以写+更新模式创建 */
 	if (!fp_image) {
 		fprintf(stderr, "Error: Failed to create disk image file.\n");
 		return STA_NOINIT;
+	}
+
+	/* --- 写入头部填充（全0xFF），文件系统卷从该偏移开始 --- */
+	volume_base = disk_header_pad;
+	if (volume_base > 0) {
+		BYTE ff_buf[4096];
+		memset(ff_buf, 0xFF, sizeof(ff_buf));
+		while (volume_base > 0) {
+			size_t chunk = volume_base > sizeof(ff_buf) ? sizeof(ff_buf) : (size_t)volume_base;
+			if (fwrite(ff_buf, 1, chunk, fp_image) != chunk) {
+				fprintf(stderr, "Error: Failed writing head padding.\n");
+				fclose(fp_image);
+				fp_image = NULL;
+				return STA_NOINIT;
+			}
+			volume_base -= chunk;
+		}
+		volume_base = disk_header_pad;
+		printf("Wrote %llu bytes of 0xFF padding at image head.\n", (unsigned long long)disk_header_pad);
 	}
 
 	/* --- 将文件扩展到预定义的大小 --- */
@@ -104,8 +125,8 @@ DRESULT disk_read (
 		return RES_NOTRDY;
 	}
 
-	/* Move file pointer to the correct sector */
-	if (fseek(fp_image, (long long)sector * disk_sector_size, SEEK_SET) != 0) {
+	/* Move file pointer to the correct sector (skip head padding) */
+	if (fseek(fp_image, volume_base + (long long)sector * disk_sector_size, SEEK_SET) != 0) {
 		return RES_ERROR;
 	}
 
@@ -137,8 +158,8 @@ DRESULT disk_write (
 		return RES_NOTRDY;
 	}
 
-	/* Move file pointer to the correct sector */
-	if (fseek(fp_image, (long long)sector * disk_sector_size, SEEK_SET) != 0) {
+	/* Move file pointer to the correct sector (skip head padding) */
+	if (fseek(fp_image, volume_base + (long long)sector * disk_sector_size, SEEK_SET) != 0) {
 		return RES_ERROR;
 	}
 
@@ -180,8 +201,8 @@ DRESULT disk_ioctl (
 
 		/* Get number of sectors on the disk (LBA_t) */
 		case GET_SECTOR_COUNT:
-			if (disk_image_size > 0) {
-                *(LBA_t*)buff = disk_image_size / disk_sector_size;
+			if (disk_image_size > volume_base + disk_sector_size) {
+                *(LBA_t*)buff = (disk_image_size - volume_base) / disk_sector_size;
                 res = RES_OK;
             } else {
                 res = RES_ERROR; // 如果大小为0，则报告错误
